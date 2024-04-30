@@ -1,0 +1,13 @@
+go 1.22.0
+
+use (
+    ./common
+    ./common/dbStructure
+    ./gate
+    ./micro-account
+    ./micro-chat
+    ./micro-room
+    ./proto
+    ./test1
+    ./test2
+)
