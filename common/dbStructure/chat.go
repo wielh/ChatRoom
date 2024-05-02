@@ -6,13 +6,13 @@ import (
 )
 
 type message struct {
-	ID       string    `pg:"type:pk,column:id"`
-	RoomID   string    `pg:"column:roomId"`
-	UserID   string    `pg:"column:userId"`
-	Username string    `pg:"column:username"`
-	Time     time.Time `pg:"column:time"`
-	Deleted  bool      `pg:"column:deleted"`
-	Content  string    `pg:"column:content"`
+	ID       string `pg:"id,pk"`
+	RoomID   string
+	UserID   string
+	Username string
+	Time     time.Time
+	Deleted  bool
+	Content  string
 }
 
 type messageModel struct {
@@ -20,16 +20,30 @@ type messageModel struct {
 
 var MessageModel = &messageModel{}
 
-func (m messageModel) GetMessages(userId string, timeStamp time.Time) (messages []*message, err error) {
-	err = c.DB.Model(messages).Where("deleted = ?", false).Where("time >=?", timeStamp).Where(
-		"EXISTS (SELECT 1 FROM unnest(usersId) AS elem WHERE elem = ?)", userId).Order("time DESC").Limit(1000).Select()
+func (m messageModel) PushMessage(userId string, username string, roomId string, content string) (err error) {
+	model := &message{
+		UserID:   userId,
+		Username: username,
+		RoomID:   roomId,
+		Content:  content,
+		Deleted:  false,
+	}
+	_, err = c.DB.Model(model).Insert()
 	return
 }
 
+func (m messageModel) GetMessages(userId string, timeStamp time.Time) ([]message, error) {
+	var messages []message
+
+	err := c.DB.Model(&messages).Where("deleted = ?", false).
+		Where("user_id = ?", userId).Where("time >=? ", timeStamp).Order("time ASC").Limit(1000).Select()
+	return messages, err
+}
+
 func (m messageModel) DeleteMessage(id string, userId string, roomId string) (err error) {
-	model := &message{
+	model := message{
 		Deleted: true,
 	}
-	_, err = c.DB.Model(model).Where("deleted = ?", false).Where("id=? and userId=? and roomId=?", id, userId, roomId).Update()
+	_, err = c.DB.Model(&model).Where("deleted = ?", false).Where("id=? and userId=? and roomId=?", id, userId, roomId).Update()
 	return
 }

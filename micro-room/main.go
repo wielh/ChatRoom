@@ -4,7 +4,7 @@ import (
 	"common"
 	"context"
 	dbstructure "dbStructure"
-	"log"
+	"fmt"
 	"net"
 	"proto"
 
@@ -15,33 +15,43 @@ type roomServiceServer struct {
 	proto.UnimplementedRoomServiceServer
 }
 
-func (s *roomServiceServer) CreateRoom(ctx context.Context, in *proto.RoomCreateRequest) (out *proto.RoomCreateResponse, err error) {
+func (s *roomServiceServer) CreateRoom(ctx context.Context, in *proto.CreateRoomRequest) (out *proto.CreateRoomResponse, err error) {
 	err = dbstructure.RoomModel.RoomCreate(in.UserID, in.RoomName)
-	if err != nil {
-		out = &proto.RoomCreateResponse{Errcode: common.ErrDBOther}
+	if err == common.ErrNoRows {
+		out = &proto.CreateRoomResponse{Errcode: common.ErrDBDataAlreadyExist}
+		return
+	} else if err != nil {
+		common.ErrorLogger("micro-room", "CreateRoom", "Create room from DB error", err, in)
+		out = &proto.CreateRoomResponse{Errcode: common.ErrDBOther}
 		return
 	}
-	out = &proto.RoomCreateResponse{Errcode: common.ErrSuccess}
+	out = &proto.CreateRoomResponse{Errcode: common.ErrSuccess}
 	return
 }
 
-func (s *roomServiceServer) DeleteRoom(ctx context.Context, in *proto.RoomDeleteRequest) (out *proto.RoomDeleteResponse, err error) {
-	err = dbstructure.RoomModel.RoomDelete(in.AdminID, in.RoomID)
+func (s *roomServiceServer) DeleteRoom(ctx context.Context, in *proto.DeleteRoomRequest) (out *proto.DeleteRoomResponse, err error) {
+	err = dbstructure.RoomModel.RoomDeleteTransection(in.AdminID, in.RoomID, ctx)
 	if err == common.ErrNoRows {
-		out = &proto.RoomDeleteResponse{Errcode: common.ErrDBDataNotFound}
+		out = &proto.DeleteRoomResponse{Errcode: common.ErrDBDataNotFound}
 		return
 	} else if err != nil {
-		out = &proto.RoomDeleteResponse{Errcode: common.ErrDBOther}
+		common.ErrorLogger("micro-room", "DeleteRoom", "Delete room from DB error", err, in)
+		out = &proto.DeleteRoomResponse{Errcode: common.ErrDBOther}
 		return
 	}
-	out = &proto.RoomDeleteResponse{Errcode: common.ErrSuccess}
+	out = &proto.DeleteRoomResponse{Errcode: common.ErrSuccess}
 	return
 }
 
 func (s *roomServiceServer) GetRoomsInfoByAdminID(ctx context.Context, in *proto.GetRoomsInfoByAdminIDRequest) (out *proto.GetRoomsInfoByAdminIDResponse, err error) {
 	rooms, err := dbstructure.RoomModel.GetRoomsInfoByAdminID(in.AdminID)
-	if err == common.ErrNoRows || len(rooms) == 0 {
+	if err == common.ErrNoRows {
 		out = &proto.GetRoomsInfoByAdminIDResponse{Errcode: common.ErrDBDataNotFound}
+		return
+	} else if err != nil {
+		common.ErrorLogger("micro-room", "GetRoomsInfoByAdminID", "Get rooms from DB error", err, in)
+		out = &proto.GetRoomsInfoByAdminIDResponse{Errcode: common.ErrDBOther}
+		return
 	}
 
 	out = &proto.GetRoomsInfoByAdminIDResponse{}
@@ -60,8 +70,14 @@ func (s *roomServiceServer) GetRoomsInfoByAdminID(ctx context.Context, in *proto
 
 func (s *roomServiceServer) GetRoomsInfoByUserID(ctx context.Context, in *proto.GetRoomsInfoByUserIDRequest) (out *proto.GetRoomsInfoByUserIDResponse, err error) {
 	rooms, err := dbstructure.RoomModel.GetRoomsInfoByUserID(in.UserID)
-	if err == common.ErrNoRows || len(rooms) == 0 {
+	//|| len(rooms) == 0
+	if err == common.ErrNoRows {
 		out = &proto.GetRoomsInfoByUserIDResponse{Errcode: common.ErrDBDataNotFound}
+		return
+	} else if err != nil {
+		common.ErrorLogger("micro-room", "GetRoomsInfoByUserID", "Get rooms from DB error", err, in)
+		out = &proto.GetRoomsInfoByUserIDResponse{Errcode: common.ErrDBOther}
+		return
 	}
 
 	out = &proto.GetRoomsInfoByUserIDResponse{}
@@ -84,6 +100,7 @@ func (s *roomServiceServer) GetRoomInfo(ctx context.Context, in *proto.GetRoomIn
 		out = &proto.GetRoomInfoResponse{Errcode: common.ErrDBDataNotFound}
 		return
 	} else if err != nil {
+		common.ErrorLogger("micro-room", "GetRoomInfo", "Get rooms from DB error", err, in)
 		out = &proto.GetRoomInfoResponse{Errcode: common.ErrDBOther}
 		return
 	}
@@ -101,15 +118,18 @@ func (s *roomServiceServer) GetRoomInfo(ctx context.Context, in *proto.GetRoomIn
 }
 
 func main() {
-	lis, err := net.Listen("tcp", common.LocalIP(common.MicroRoomPort))
+	common.ConfigInit()
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", common.MicroRoomPort))
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+		common.ErrorLogger("micro-room", "main", fmt.Sprintf("Failed to listen port %v", common.MicroRoomPort), err)
+		return
 	}
-	s := grpc.NewServer()
 
+	s := grpc.NewServer()
 	proto.RegisterRoomServiceServer(s, &roomServiceServer{})
-	log.Println("Starting gRPC server...")
+	common.InfoLogger("micro-room", "main", "Starting gRPC server...")
 	if err := s.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+		common.ErrorLogger("micro-room", "main", "Starting gRPC server failed", err)
+		return
 	}
 }
