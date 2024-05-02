@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+option go_package = "./proto";
+
+service RoomService {
+    rpc CreateRoom (CreateRoomRequest) returns (CreateRoomResponse);
+    rpc DeleteRoom (DeleteRoomRequest) returns (DeleteRoomResponse);
+    rpc GetRoomsInfoByAdminID (GetRoomsInfoByAdminIDRequest) returns (GetRoomsInfoByAdminIDResponse);
+    rpc GetRoomsInfoByUserID (GetRoomsInfoByUserIDRequest) returns (GetRoomsInfoByUserIDResponse);
+    rpc GetRoomInfo (GetRoomInfoRequest) returns (GetRoomInfoResponse);
+    rpc AddUser (AddUserRequest) returns (AddUserResponse);
+    rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse);
+}
+
+message RoomInfo {
+	string ID = 1;
+	string name = 2;
+    string adminID = 3;
+    repeated string usersID = 4;
+}
+
+message CreateRoomRequest {
+    string userID = 1;
+    string roomName = 2;
+}
+
+message CreateRoomResponse {
+    int32 errcode = 1;
+}
+
+message AddUserRequest {
+    string adminID = 1;
+    string roomID = 2;
+    string userID = 3;
+}
+
+message AddUserResponse {
+    int32 errcode = 1;
+}
+
+message DeleteUserRequest {
+    string adminID = 1;
+    string roomID = 2;
+    string userID = 3;
+}
+
+message DeleteUserResponse {
+    int32 errcode = 1;
+}
+
+message DeleteRoomRequest {
+    string adminID = 1;
+    string roomID = 2;
+}
+
+message DeleteRoomResponse {
+    int32 errcode = 1;
+}
+
+message GetRoomsInfoByAdminIDRequest {
+    string AdminID = 1;
+}
+
+message GetRoomsInfoByAdminIDResponse {
+    int32 errcode = 1;
+    repeated RoomInfo roomsInfo = 2;
+}
+
+message GetRoomsInfoByUserIDRequest {
+    string userID = 1;
+}
+
+message GetRoomsInfoByUserIDResponse {
+    int32 errcode = 1;
+    repeated RoomInfo roomsInfo = 2;
+}
+
+message GetRoomInfoRequest {
+    string roomID = 1;
+    string userID = 2;
+}
+
+message GetRoomInfoResponse {
+    int32 errcode = 1;
+    RoomInfo roomInfo = 2;
+}

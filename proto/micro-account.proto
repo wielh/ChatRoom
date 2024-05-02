@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+option go_package = "./proto";
+
+service AccountService {
+    rpc GoogleLogin (GooogleLoginRequest) returns (GooogleLoginResponse);
+    rpc GetGoogleUserInfo (GetGoogleUserInfoRequest) returns (GetGoogleUserInfoResponse);
+}
+
+message GooogleLoginRequest {
+    string googleID = 1;
+	string firstName = 2;
+	string lastName = 3;
+	string sex = 4;
+	repeated string email = 5;
+	string birth = 6;
+}
+
+message GooogleLoginResponse {
+    int32 errcode = 1;
+    string token = 2;
+}
+
+message GetGoogleUserInfoRequest {
+	string googleID = 1;
+}
+
+message GetGoogleUserInfoResponse {
+	int32 errcode = 1;
+    string googleID = 2;
+	string firstName= 3;
+	string lastName = 4;
+	string sex= 5;
+	repeated string email = 6;
+	string birth = 7;
+	string createDateTime = 8;
+}
+
+
