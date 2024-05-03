@@ -18,7 +18,15 @@ type chatServiceServer struct {
 }
 
 func (s *chatServiceServer) PushMessage(ctx context.Context, in *proto.PushMessageRequest) (*proto.PushMessageResponse, error) {
-	err := dbstructure.MessageModel.PushMessage(in.UserID, in.Username, in.RoomID, in.Content)
+	_, err := dbstructure.RoomModel.GetRoomInfo(in.UserID, in.RoomID)
+	if err == common.ErrNoRows {
+		return &proto.PushMessageResponse{Errcode: common.ErrDBDataNotFound}, nil
+	} else if err != nil {
+		common.ErrorLogger("micro-room", "GetRoomInfo", "Get rooms from DB error", err, in)
+		return &proto.PushMessageResponse{Errcode: common.ErrDBOther}, nil
+	}
+
+	err = dbstructure.MessageModel.PushMessage(in.UserID, in.Username, in.RoomID, in.Content)
 	if err != nil {
 		common.ErrorLogger("micro-chat", "PushMessage", "Create message from DB error", err, in)
 		return &proto.PushMessageResponse{Errcode: common.ErrDBOther}, nil

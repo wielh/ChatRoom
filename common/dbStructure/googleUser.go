@@ -40,6 +40,7 @@ func (model googleUserModel) SelectUser(googleId string) (*GoogleUser, error) {
 	product := &GoogleUser{}
 	err := c.DB.Model(product).OnConflict("(googleid) DO NOTHING").Where("googleid=?", googleId).First()
 	if err != nil {
+		c.WarnLogger("common", "googleUserModel.SelectUser", "no user", err, googleId)
 		return nil, err
 	}
 

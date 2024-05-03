@@ -1,6 +1,8 @@
 package common
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -52,14 +54,65 @@ func generateErrorMessage(username string, functionName string, message string, 
 	return fmt.Sprintf("FunctionName: %s, username: %s, message: %s, error:%v, data:%+v", functionName, username, message, err, data)
 }
 
+type LoggerDocument struct {
+	FunctionName string `json:"FunctionName"`
+	Message      string `json:"message"`
+	Level        string `json:"level"`
+	ErrMsg       string `json:"errMsg"`
+	Data         []any  `json:"data"`
+	Time         string `json:"time"`
+}
+
 func InfoLogger(username string, functionName string, message string, data ...interface{}) {
 	logrus.Info(generateMessage(username, functionName, message, data))
+	go func() {
+		docStr, err := json.Marshal(LoggerDocument{
+			FunctionName: functionName,
+			Message:      message,
+			Level:        "info",
+			Data:         data,
+			Time:         time.Now().Format("2006-01-02 15:04:05.111"),
+		})
+
+		if err != nil {
+			return
+		}
+		ElasticClient.Index(username, bytes.NewReader(docStr))
+	}()
 }
 
 func WarnLogger(username string, functionName string, message string, err error, data ...interface{}) {
 	logrus.Warn(generateErrorMessage(username, functionName, message, err, data))
+	go func() {
+		docStr, _ := json.Marshal(LoggerDocument{
+			FunctionName: functionName,
+			Message:      message,
+			Level:        "warn",
+			ErrMsg:       err.Error(),
+			Data:         data,
+			Time:         time.Now().Format("2006-01-02 15:04:05.111"),
+		})
+
+		ElasticClient.Index(username, bytes.NewReader(docStr))
+	}()
 }
 
 func ErrorLogger(username string, functionName string, message string, err error, data ...interface{}) {
 	logrus.Error(generateErrorMessage(username, functionName, message, err, data))
+	go func() {
+		docStr, err := json.Marshal(LoggerDocument{
+			FunctionName: functionName,
+			Message:      message,
+			Level:        "error",
+			ErrMsg:       err.Error(),
+			Data:         data,
+			Time:         time.Now().Format("2006-01-02 15:04:05.111"),
+		})
+
+		if err != nil {
+			return
+		}
+
+		ElasticClient.Index(username, bytes.NewReader(docStr))
+	}()
 }
