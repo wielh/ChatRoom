@@ -1,4 +1,4 @@
-# Bookstore API 介紹
+# Chatroom API 介紹
 
 ## 1. 這是一個怎麼樣的程式
 

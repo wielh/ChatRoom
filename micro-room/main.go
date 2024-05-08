@@ -117,6 +117,24 @@ func (s *roomServiceServer) GetRoomInfo(ctx context.Context, in *proto.GetRoomIn
 	return
 }
 
+func (s *roomServiceServer) AddUser(ctx context.Context, in *proto.AddUserRequest) (out *proto.AddUserResponse, err error) {
+	err = dbstructure.RoomModel.AddUser(in.AdminID, in.RoomID, in.UserID)
+	if err != nil {
+		out = &proto.AddUserResponse{Errcode: common.ErrDBOther}
+	}
+	out = &proto.AddUserResponse{Errcode: common.ErrSuccess}
+	return
+}
+
+func (s *roomServiceServer) DeleteUser(ctx context.Context, in *proto.DeleteUserRequest) (out *proto.DeleteUserResponse, err error) {
+	err = dbstructure.RoomModel.DeleteUser(in.AdminID, in.RoomID, in.UserID)
+	if err != nil {
+		out = &proto.DeleteUserResponse{Errcode: common.ErrDBOther}
+	}
+	out = &proto.DeleteUserResponse{Errcode: common.ErrSuccess}
+	return
+}
+
 func main() {
 	common.ConfigInit()
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", common.MicroRoomPort))
