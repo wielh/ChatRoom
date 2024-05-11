@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/sirupsen/logrus"
 )
@@ -13,37 +15,64 @@ import (
 func ToCommonID(ID string, userType UserType) string {
 	switch userType {
 	case GoogleUser:
-		return "googleID::" + ID
+		return "googleID:" + ID
 	default:
 		return ""
 	}
 }
 
-func CreateToken(userID string, userType int32) string {
+func ToSpecificID(ID string) (string, UserType) {
+	if strings.HasPrefix(ID, "googleID:") {
+		return ID[len("googleID:"):], GoogleUser
+	} else {
+		return "", None
+	}
+}
 
-	var answer string = ToCommonID(userID, UserType(userType))
-	if answer == "" {
+func CreateToken(userID string, userType int32, username string) string {
+	var id string = ToCommonID(userID, UserType(userType))
+	if id == "" {
 		return ""
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": answer,
-		"exp":      time.Now().Add(24 * time.Hour),
-	})
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+	claims["userID"] = id
+	claims["username"] = username
+	claims["exp"] = time.Now().Add(time.Hour * 24).Unix() // 过期时间 24 小时
 
-	tokenString, err := token.SignedString(JWTSecretKey)
+	answer, err := token.SignedString(JWTSecretKey)
 	if err != nil {
 		return ""
 	}
-	return tokenString
+	return answer
+}
+
+func ParseJWT(tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return JWTSecretKey, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, nil
+	} else {
+		return nil, err
+	}
 }
 
 func TimeStampToString(timeStamp time.Time) string {
-	return timeStamp.Format("2006-01-02 15:04:05")
+	return timeStamp.Format("2006-01-02 15:04:05.000")
 }
 
 func StringToTimeStamp(timeStr string) (time.Time, error) {
-	return time.Parse("2006-01-02 15:04:05", timeStr)
+	return time.Parse("2006-01-02 15:04:05.000", timeStr)
 }
 
 func generateMessage(username string, functionName string, message string, data any) string {
@@ -115,4 +144,12 @@ func ErrorLogger(username string, functionName string, message string, err error
 
 		ElasticClient.Index(username, bytes.NewReader(docStr))
 	}()
+}
+
+func GetUserID(c *gin.Context) (string, bool) {
+	userID, exist := c.Get("userID")
+	if !exist {
+		return "", false
+	}
+	return fmt.Sprintf("%v", userID), true
 }

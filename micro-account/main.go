@@ -4,6 +4,7 @@ import (
 	"common"
 	"context"
 	dbstructure "dbStructure"
+	"errorCode"
 	"fmt"
 	"net"
 	"proto"
@@ -16,44 +17,36 @@ type accountServer struct {
 }
 
 func (s *accountServer) GoogleLogin(ctx context.Context, in *proto.GooogleLoginRequest) (*proto.GooogleLoginResponse, error) {
-	birthTimeStamp, err := common.StringToTimeStamp(in.Birth)
-	if err != nil {
-		common.WarnLogger("micro-account", "GoogleLogin", "convert birth time stamp error", err, in)
-		return &proto.GooogleLoginResponse{Errcode: common.ErrParameters}, nil
-	}
-
-	_, err = dbstructure.GoogleUserModel.SelectUser(in.GoogleID)
-	if err == common.ErrNoRows {
-		err = dbstructure.GoogleUserModel.InsertUser(in.GoogleID, in.FirstName, in.LastName, in.Sex, in.Email, birthTimeStamp)
+	exist, err := dbstructure.GoogleUserModel.UserExist(in.GoogleID)
+	if !exist {
+		err = dbstructure.GoogleUserModel.InsertUser(in.GoogleID, in.FirstName, in.LastName, in.Email)
 		if err != nil {
 			common.ErrorLogger("micro-account", "GoogleLogin", "Insert user to DB error", err, in)
-			return &proto.GooogleLoginResponse{Errcode: common.ErrDBOther}, nil
+			return &proto.GooogleLoginResponse{Errcode: errorCode.ErrDBOther}, nil
 		}
 	} else if err != nil {
 		common.ErrorLogger("micro-account", "GoogleLogin", "Select user from DB error", err, in)
-		return &proto.GooogleLoginResponse{Errcode: common.ErrDBOther}, nil
+		return &proto.GooogleLoginResponse{Errcode: errorCode.ErrDBOther}, nil
 	}
-	return &proto.GooogleLoginResponse{Errcode: common.ErrSuccess, Token: common.CreateToken(in.GoogleID, 0)}, nil
+	return &proto.GooogleLoginResponse{Errcode: errorCode.ErrSuccess, Token: common.CreateToken(in.GoogleID, 0, in.FirstName)}, nil
 }
 
 func (s *accountServer) GetGoogleUserInfo(ctx context.Context, in *proto.GetGoogleUserInfoRequest) (*proto.GetGoogleUserInfoResponse, error) {
 	row, err := dbstructure.GoogleUserModel.SelectUser(in.GoogleID)
 	if err == common.ErrNoRows {
-		return &proto.GetGoogleUserInfoResponse{Errcode: common.ErrDBDataNotFound}, nil
+		return &proto.GetGoogleUserInfoResponse{Errcode: errorCode.ErrDBDataNotFound}, nil
 	} else if err != nil {
 		common.ErrorLogger("micro-account", "GetGoogleUserInfo", "Select user from DB error", err, in)
-		return &proto.GetGoogleUserInfoResponse{Errcode: common.ErrDBOther}, nil
+		return &proto.GetGoogleUserInfoResponse{Errcode: errorCode.ErrDBOther}, nil
 	}
 
 	return &proto.GetGoogleUserInfoResponse{
-		Errcode:        common.ErrSuccess,
+		Errcode:        errorCode.ErrSuccess,
 		GoogleID:       row.GoogleId,
 		FirstName:      row.FirstName,
 		LastName:       row.LastName,
-		Sex:            row.Sex,
 		Email:          row.Email,
 		CreateDateTime: row.CreateDatetime.String(),
-		Birth:          common.TimeStampToString(row.Birth),
 	}, nil
 }
 

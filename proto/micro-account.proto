@@ -11,9 +11,7 @@ message GooogleLoginRequest {
     string googleID = 1;
 	string firstName = 2;
 	string lastName = 3;
-	string sex = 4;
-	repeated string email = 5;
-	string birth = 6;
+	string email = 4;
 }
 
 message GooogleLoginResponse {
@@ -31,9 +29,8 @@ message GetGoogleUserInfoResponse {
 	string firstName= 3;
 	string lastName = 4;
 	string sex= 5;
-	repeated string email = 6;
-	string birth = 7;
-	string createDateTime = 8;
+	string email = 6;
+	string createDateTime = 7;
 }
 
 

@@ -20,7 +20,7 @@
  * 要使用 grpc 在微服務之間通信，需要安裝  protobuf-compiler, protoc-gen-ts，安裝完成後使用以下指令編譯 proto 檔案
 
  ```
-  protoc -I="." --ts_out="."  .\proto\*.proto
+   protoc --go_out=. --go-grpc_out=. .\proto\*.proto
 ```
 
  * elastic 是紀錄與搜尋 log 的引擎程式，而 kibana 是 elastic 的可視化程式。搜尋 log 的功能主要是在左上角 "discover" 欄位。

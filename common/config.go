@@ -9,6 +9,8 @@ import (
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/go-pg/pg/v10"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 var DB *pg.DB
@@ -23,7 +25,8 @@ var JWTSecretKey []byte = []byte("0d00-0721")
 type UserType int
 
 const (
-	GoogleUser UserType = iota // 0
+	None       UserType = -1
+	GoogleUser UserType = 0
 )
 
 const (
@@ -34,6 +37,17 @@ const (
 	PostgresPort     = 5432
 	ElasticPort      = 9200
 )
+
+var GoogleOauth2Config = &oauth2.Config{
+	ClientID:     "***.apps.googleusercontent.com",
+	ClientSecret: "***",
+	RedirectURL:  "http://127.0.0.1:80/account/google_callback",
+	Scopes: []string{
+		"https://www.googleapis.com/auth/userinfo.email",
+		"https://www.googleapis.com/auth/userinfo.profile",
+	},
+	Endpoint: google.Endpoint,
+}
 
 func DBInit() *pg.DB {
 	DB = pg.Connect(&pg.Options{

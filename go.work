@@ -3,7 +3,10 @@ go 1.22.0
 use (
     ./common
     ./common/dbStructure
+    ./common/errorCode
     ./gate
+    ./gate/action
+    ./gate/serviceClient
     ./micro-account
     ./micro-chat
     ./micro-room

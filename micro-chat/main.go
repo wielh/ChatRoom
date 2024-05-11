@@ -4,10 +4,12 @@ import (
 	"common"
 	"context"
 	dbstructure "dbStructure"
+	"errorCode"
 	"fmt"
 	"log"
 	"net"
 	"proto"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -20,27 +22,39 @@ type chatServiceServer struct {
 func (s *chatServiceServer) PushMessage(ctx context.Context, in *proto.PushMessageRequest) (*proto.PushMessageResponse, error) {
 	_, err := dbstructure.RoomModel.GetRoomInfo(in.UserID, in.RoomID)
 	if err == common.ErrNoRows {
-		return &proto.PushMessageResponse{Errcode: common.ErrDBDataNotFound}, nil
+		return &proto.PushMessageResponse{Errcode: errorCode.ErrDBDataNotFound}, nil
 	} else if err != nil {
 		common.ErrorLogger("micro-room", "GetRoomInfo", "Get rooms from DB error", err, in)
-		return &proto.PushMessageResponse{Errcode: common.ErrDBOther}, nil
+		return &proto.PushMessageResponse{Errcode: errorCode.ErrDBOther}, nil
 	}
 
 	err = dbstructure.MessageModel.PushMessage(in.UserID, in.Username, in.RoomID, in.Content)
 	if err != nil {
 		common.ErrorLogger("micro-chat", "PushMessage", "Create message from DB error", err, in)
-		return &proto.PushMessageResponse{Errcode: common.ErrDBOther}, nil
+		return &proto.PushMessageResponse{Errcode: errorCode.ErrDBOther}, nil
 	}
 
-	return &proto.PushMessageResponse{Errcode: common.ErrSuccess}, nil
+	return &proto.PushMessageResponse{Errcode: errorCode.ErrSuccess}, nil
 }
+
+/*
+func maxTime(t1 time.Time, t2 time.Time) time.Time {
+	if t1.After(t2) {
+		fmt.Println("11111")
+		return t1
+	}
+	fmt.Println("2222")
+	return t2
+}*/
 
 func (s *chatServiceServer) GetChatContent(in *proto.GetChatContentRequest, out proto.ChatService_GetChatContentServer) (err error) {
 	var timeStamp time.Time
 	if in.LastMessageTimeStamp == "" {
 		timeStamp = time.Now()
 	} else {
-		timeStamp, err = time.Parse("2006-01-02 15:04:05", in.LastMessageTimeStamp)
+		t := strings.Replace(in.LastMessageTimeStamp, "\n", "", -1)
+		t = strings.Replace(t, "\r", "", -1)
+		timeStamp, err = common.StringToTimeStamp(t)
 		if err != nil {
 			common.WarnLogger("micro-chat", "GetChatContent", "Parse timestamp from string failed", err, in)
 			return
@@ -53,21 +67,24 @@ func (s *chatServiceServer) GetChatContent(in *proto.GetChatContentRequest, out 
 			common.ErrorLogger("micro-chat", "dbstructure.MessageModel.GetMessages", "Get message from DB error", err, in)
 			return err
 		}
+		fmt.Println("length:", len(messages))
 
 		var singalResponse = &proto.GetChatContentResponse{}
-		singalResponse.Messages = make([]*proto.ChatMessage, 0)
 		if len(messages) == 0 {
-			singalResponse.LastMessageTimeStamp = common.TimeStampToString(time.Now())
+			timeStamp = time.Now()
+			singalResponse.LastMessageTimeStamp = common.TimeStampToString(timeStamp)
 		} else {
+			singalResponse.Messages = []*proto.ChatMessage{}
 			for _, message := range messages {
+				timeStamp = message.Time
 				singalResponse.Messages = append(singalResponse.Messages, &proto.ChatMessage{
 					ID:        message.ID,
 					UserID:    message.UserID,
 					RoomID:    message.RoomID,
 					Content:   message.Content,
-					TimeStamp: common.TimeStampToString(message.Time),
+					TimeStamp: common.TimeStampToString(timeStamp),
 				})
-				singalResponse.LastMessageTimeStamp = message.Time.Format("2006-01-02 15:04:05")
+				singalResponse.LastMessageTimeStamp = common.TimeStampToString(timeStamp)
 			}
 		}
 

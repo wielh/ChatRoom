@@ -56,12 +56,22 @@ func (r roomHistoryModel) roomHistoryCreate(tx *pg.Tx, adminId string, name stri
 	return err
 }
 
+type CustomError struct {
+	message string
+}
+
+func (e *CustomError) Error() string {
+	return e.message
+}
+
 func (r roomModel) RoomDeleteTransection(adminId string, roomId string, context context.Context) (err error) {
 	err = c.DB.RunInTransaction(context, func(tx *pg.Tx) error {
-		roomInfo, err := r.GetRoomInfoByAdminID(adminId, roomId)
+		roomInfo, err := r.getRoomInfoByAdminID(adminId, roomId)
 		if err != nil {
 			c.WarnLogger("common", " r.GetRoomInfoByAdminID", "Get room by admin_id and id failed", err, adminId, roomId)
 			return err
+		} else if roomInfo == nil {
+			return &CustomError{message: "cannot find room by adminId and roomId"}
 		}
 
 		err = r.roomDelete(tx, adminId, roomId)
@@ -91,12 +101,10 @@ func (r roomModel) AddUser(adminId string, roomID string, userId string) error {
 }
 
 func (r roomModel) DeleteUser(adminId string, roomID string, userId string) error {
-	model := &Room{
-		UsersID: []string{adminId},
-	}
-	_, err := c.DB.Model(model).Where("admin_id=?", adminId).Where("id=?", roomID).Where(
-		"EXISTS (SELECT 1 FROM unnest(users_id) AS elem WHERE elem = ?)", userId).Set(
-		"users_id = ARRAY_REMOVE(users_id, ?)", userId).Update()
+	model := &Room{}
+	_, err := c.DB.Model(model).Set("users_id = ARRAY_REMOVE(users_id, ?)", userId).
+		Where("id=?", roomID).Where("admin_id=?", adminId).Where("admin_id<>?", userId).
+		Where("EXISTS (SELECT 1 FROM unnest(users_id) AS elem WHERE elem = ?)", userId).Update()
 	return err
 }
 
@@ -106,7 +114,7 @@ func (r roomModel) GetRoomsInfoByAdminID(adminId string) ([]Room, error) {
 	return roomsInfo, err
 }
 
-func (r roomModel) GetRoomInfoByAdminID(adminId string, roomId string) (roomInfo *Room, err error) {
+func (r roomModel) getRoomInfoByAdminID(adminId string, roomId string) (roomInfo *Room, err error) {
 	roomInfo = &Room{}
 	err = c.DB.Model(roomInfo).Where("admin_id=? and id=?", adminId, roomId).Select()
 	return

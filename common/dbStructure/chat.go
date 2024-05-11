@@ -36,7 +36,7 @@ func (m messageModel) GetMessages(userId string, timeStamp time.Time) ([]message
 	var messages []message
 
 	err := c.DB.Model(&messages).Where("deleted = ?", false).
-		Where("user_id = ?", userId).Where("time >=? ", timeStamp).Order("time ASC").Limit(1000).Select()
+		Where("user_id = ?", userId).Where("time >? ", timeStamp).Order("time ASC").Limit(1000).Select()
 	return messages, err
 }
 
