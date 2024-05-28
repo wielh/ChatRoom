@@ -37,16 +37,6 @@ func (s *chatServiceServer) PushMessage(ctx context.Context, in *proto.PushMessa
 	return &proto.PushMessageResponse{Errcode: errorCode.ErrSuccess}, nil
 }
 
-/*
-func maxTime(t1 time.Time, t2 time.Time) time.Time {
-	if t1.After(t2) {
-		fmt.Println("11111")
-		return t1
-	}
-	fmt.Println("2222")
-	return t2
-}*/
-
 func (s *chatServiceServer) GetChatContent(in *proto.GetChatContentRequest, out proto.ChatService_GetChatContentServer) (err error) {
 	var timeStamp time.Time
 	if in.LastMessageTimeStamp == "" {
